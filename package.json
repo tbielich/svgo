@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "description": "Optimize SVG files from src to dist using svgo.",
   "scripts": {
-    "optimize:svgs": "node svgo.mjs"
+    "optimize:svgs": "node svgo.mjs",
+    "rename:svgs": "node scripts/rename-svgs.js"
   },
   "devDependencies": {
     "ignore": "^5.3.2",

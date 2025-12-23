@@ -1,7 +1,14 @@
 import { optimize, loadConfig } from "svgo";
 import ignoreModule from "ignore";
-import { access, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
-import { dirname, join, relative, sep } from "node:path";
+import {
+  access,
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  writeFile,
+} from "node:fs/promises";
+import { dirname, extname, join, relative, sep } from "node:path";
 
 const LOG_PREFIX = "SVGO:\t";
 const IGNORE_FILE = ".svgo-ignore";
@@ -16,6 +23,11 @@ try {
 
 const INPUT_DIR = "src";
 const OUTPUT_DIR = "dist";
+const sizeArg = getArgValue("--size");
+const widthArg = getArgValue("--width");
+const heightArg = getArgValue("--height");
+const width = sizeArg || widthArg;
+const height = sizeArg || heightArg;
 
 const config = await loadConfig("svgo.config.js");
 
@@ -39,13 +51,16 @@ await Promise.all(
       ...config,
       path: file,
     });
+    const outputSvg =
+      width && height ? addDimensions(data, width, height) : data;
 
     const outputPath = join(OUTPUT_DIR, relative(INPUT_DIR, file));
     await mkdir(dirname(outputPath), { recursive: true });
-    await writeFile(outputPath, data, "utf8");
+    await writeFile(outputPath, outputSvg, "utf8");
   })
 );
 
+await renameDistSvgs();
 console.log(LOG_PREFIX, "Successful.\n");
 
 async function listFiles(dir) {
@@ -63,4 +78,87 @@ async function listFiles(dir) {
 
 function posixPath(filePath) {
   return filePath.split(sep).join("/");
+}
+
+function addDimensions(svg, widthValue, heightValue) {
+  const match = svg.match(/<svg\b[^>]*>/i);
+  if (!match) return svg;
+
+  const originalTag = match[0];
+  const strippedTag = originalTag.replace(
+    /\s(?:width|height)="[^"]*"/gi,
+    ""
+  );
+  const updatedTag = strippedTag.replace(
+    />$/,
+    ` width="${widthValue}" height="${heightValue}">`
+  );
+
+  return svg.replace(originalTag, updatedTag);
+}
+
+function getArgValue(flag) {
+  const index = process.argv.indexOf(flag);
+  if (index === -1) return null;
+  return process.argv[index + 1] || null;
+}
+
+async function renameDistSvgs() {
+  try {
+    await access(OUTPUT_DIR);
+  } catch {
+    return;
+  }
+
+  const entries = await readdir(OUTPUT_DIR, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    if (extname(entry.name).toLowerCase() !== ".svg") continue;
+
+    const src = join(OUTPUT_DIR, entry.name);
+    const base = entry.name.slice(0, -extname(entry.name).length);
+    const newBase = slugify(base);
+    const newName = newBase + ".svg";
+    if (newName === entry.name) continue;
+
+    const uniqueName = await uniquePath(OUTPUT_DIR, newName);
+    await rename(src, join(OUTPUT_DIR, uniqueName));
+  }
+}
+
+function slugify(name) {
+  const normalized = name
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  const hyphenated = normalized
+    .replace(/[\s_]+/g, "-")
+    .replace(/[–—]/g, "-")
+    .replace(/[^a-z0-9.-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return hyphenated || "file";
+}
+
+async function uniquePath(dir, filename) {
+  const base = filename.slice(0, -extname(filename).length);
+  let candidate = filename;
+  let i = 2;
+  while (await pathExists(join(dir, candidate))) {
+    candidate = `${base}-${i}.svg`;
+    i += 1;
+  }
+  return candidate;
+}
+
+async function pathExists(targetPath) {
+  try {
+    await access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
 }
