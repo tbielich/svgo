@@ -1,0 +1,11 @@
+{
+  "files.associations": {
+    "*.svg": "xml"
+  },
+  "workbench.editorAssociations": {
+    "*.svg": "default"
+  },
+  "[xml]": {
+    "editor.wordWrap": "on"
+  }
+}

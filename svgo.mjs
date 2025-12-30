@@ -26,6 +26,7 @@ const OUTPUT_DIR = "dist";
 const sizeArg = getArgValue("--size");
 const widthArg = getArgValue("--width");
 const heightArg = getArgValue("--height");
+const classArg = getArgValue("--class");
 const width = sizeArg || widthArg;
 const height = sizeArg || heightArg;
 
@@ -47,8 +48,24 @@ console.log(
 await Promise.all(
   svgFilesToProcess.map(async (file) => {
     const svgString = await readFile(file, "utf8");
+    const perFileConfig = classArg
+      ? {
+          ...config,
+          plugins: config.plugins.map((plugin) =>
+            plugin?.name === "addClassesToSVGElement"
+              ? {
+                  ...plugin,
+                  params: {
+                    ...plugin.params,
+                    classNames: [classArg],
+                  },
+                }
+              : plugin
+          ),
+        }
+      : config;
     const { data } = optimize(svgString, {
-      ...config,
+      ...perFileConfig,
       path: file,
     });
     const outputSvg =
