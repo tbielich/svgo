@@ -28,6 +28,12 @@ Or set width/height separately:
 npm run optimize:svgs -- --width 48 --height 48
 ```
 
+Configure canvas size and inner padding (default: 64 and 2):
+
+```bash
+npm run optimize:svgs -- --canvas 64 --padding 2
+```
+
 ## Rename SVGs
 
 ```bash

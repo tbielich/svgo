@@ -27,6 +27,11 @@ const sizeArg = getArgValue("--size");
 const widthArg = getArgValue("--width");
 const heightArg = getArgValue("--height");
 const classArg = getArgValue("--class");
+const canvasArg = getArgValue("--canvas");
+const paddingArg = getArgValue("--padding");
+
+if (canvasArg) process.env.SVGO_CANVAS_SIZE = canvasArg;
+if (paddingArg) process.env.SVGO_CANVAS_PADDING = paddingArg;
 const width = sizeArg || widthArg;
 const height = sizeArg || heightArg;
 
